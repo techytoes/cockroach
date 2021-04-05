@@ -32,6 +32,12 @@ typedef struct {
   size_t len;
 } CR_GEOS_Slice;
 
+typedef struct {
+  char** data;
+  size_t lenx;
+  size_t leny;
+} CR_GEOS_Arr_Slice;
+
 // CR_GEOS_String contains a C pointer that needs to be freed.
 typedef struct {
   char* data;
@@ -193,6 +199,9 @@ CR_GEOS_Status CR_GEOS_VoronoiDiagram(CR_GEOS* lib, CR_GEOS_Slice g, CR_GEOS_Sli
                                       double tolerance, int onlyEdges, CR_GEOS_String* ret);
 
 CR_GEOS_Status CR_GEOS_Snap(CR_GEOS* lib, CR_GEOS_Slice input, CR_GEOS_Slice target, double tolerance, CR_GEOS_String* ret);
+
+CR_GEOS_Status CR_GEOS_Polygonize(CR_GEOS* lib, CR_GEOS_Arr_Slice geoms,
+                                      int ngeoms, CR_GEOS_String* ret);
 
 #ifdef __cplusplus
 }  // extern "C"

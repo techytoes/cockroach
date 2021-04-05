@@ -6391,6 +6391,38 @@ See http://developers.google.com/maps/documentation/utilities/polylinealgorithm`
 			Volatility: tree.VolatilityImmutable,
 		},
 	),
+	"st_polygonize": makeBuiltin(
+		defProps(),
+		tree.Overload{
+			Types: tree.ArgTypes{
+				{"geometry", types.AnyArray},
+				{"ngeoms", types.Int},
+			},
+			ReturnType: tree.FixedReturnType(types.Geometry),
+			Fn: func(ctx *tree.EvalContext, args tree.Datums) (tree.Datum, error) {
+				geomsArr := tree.MustBeDArray(args[0])
+				geoms := make([]geo.Geometry, len(geomsArr.Array))
+				for i, v := range geomsArr.Array {
+					g, ok := v.(*tree.DGeometry)
+					if !ok {
+						return nil, errors.Newf("argument must be LINESTRING geometries")
+					}
+					geoms[i] = g.Geometry
+				}
+				ngeoms := tree.MustBeDInt(args[1])
+				ret, err := geomfn.Polygonize(geoms, int(ngeoms))
+				if err != nil {
+					return nil, err
+				}
+				return tree.NewDGeometry(ret), nil
+			},
+			Info: infoBuilder{
+				info: `returns a GeometryCollection containing the polygons formed by` +
+					`the constituent linework of a set of geometries.`,
+			}.String(),
+			Volatility: tree.VolatilityImmutable,
+		},
+	),
 	"st_orientedenvelope": makeBuiltin(
 		defProps(),
 		tree.Overload{
@@ -6495,7 +6527,6 @@ May return a Point or LineString in the case of degenerate inputs.`,
 	"st_length2dspheroid":      makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 48967}),
 	"st_lengthspheroid":        makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 48968}),
 	"st_linecrossingdirection": makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 48969}),
-	"st_polygonize":            makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 49011}),
 	"st_quantizecoordinates":   makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 49012}),
 	"st_seteffectivearea":      makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 49030}),
 	"st_simplifyvw":            makeBuiltin(tree.FunctionProperties{UnsupportedWithIssue: 49039}),

@@ -176,6 +176,8 @@ typedef CR_GEOS_Geometry (*CR_GEOS_MinimumRotatedRectangle_r)(CR_GEOS_Handle, CR
 
 typedef CR_GEOS_Geometry (*CR_GEOS_Snap_r)(CR_GEOS_Handle, CR_GEOS_Geometry, CR_GEOS_Geometry, double);
 
+typedef CR_GEOS_Geometry (*CR_GEOS_Polygonize_r)(CR_GEOS_Handle, CR_GEOS_Geometry, int);
+
 std::string ToString(CR_GEOS_Slice slice) { return std::string(slice.data, slice.len); }
 
 }  // namespace
@@ -282,6 +284,7 @@ struct CR_GEOS {
   CR_GEOS_VoronoiDiagram_r GEOSVoronoiDiagram_r;
   CR_GEOS_EqualsExact_r GEOSEqualsExact_r;
   CR_GEOS_MinimumRotatedRectangle_r GEOSMinimumRotatedRectangle_r;
+  CR_GEOS_Polygonize_r GEOSPolygonize_r;
 
   CR_GEOS_Node_r GEOSNode_r;
 
@@ -469,6 +472,19 @@ CR_GEOS_Geometry CR_GEOS_GeometryFromSlice(CR_GEOS* lib, CR_GEOS_Handle handle,
   auto geom = lib->GEOSWKBReader_read_r(handle, wkbReader, slice.data, slice.len);
   lib->GEOSWKBReader_destroy_r(handle, wkbReader);
   return geom;
+}
+
+CR_GEOS_Geometry CR_GEOS_GeometryFromArrSlice(CR_GEOS* lib, CR_GEOS_Handle handle,
+                                           CR_GEOS_Arr_Slice slice) {
+  auto wkbReader = lib->GEOSWKBReader_create_r(handle);
+
+  CR_GEOS_Geometry geoms[slice.lenx];
+  for(int i=0; i< slice.lenx; i++) {
+    auto geom = lib->GEOSWKBReader_read_r(handle, wkbReader, slice.data[i], slice.leny);
+    geoms[i] = geom;
+  }
+  lib->GEOSWKBReader_destroy_r(handle, wkbReader);
+  return geoms;
 }
 
 void CR_GEOS_writeGeomToEWKB(CR_GEOS* lib, CR_GEOS_Handle handle, CR_GEOS_Geometry geom,
@@ -1549,6 +1565,28 @@ CR_GEOS_Status CR_GEOS_Snap(CR_GEOS* lib, CR_GEOS_Slice input, CR_GEOS_Slice tar
   if (gGeomTarget != nullptr) {
     lib->GEOSGeom_destroy_r(handle, gGeomTarget);
   }
+  lib->GEOS_finish_r(handle);
+  return toGEOSString(error.data(), error.length());
+}
+
+CR_GEOS_Status CR_GEOS_Polygonize(CR_GEOS* lib, CR_GEOS_Arr_Slice geoms,
+                                      int ngeoms, CR_GEOS_String* ret) {
+  std::string error;
+  auto handle = initHandleWithErrorBuffer(lib, &error);
+
+  auto geomsG = CR_GEOS_GeometryFromArrSlice(lib, handle, geoms);
+  *ret = {.data = NULL, .len = 0};
+
+  if (geomsG != nullptr) {
+    auto r = lib->GEOSPolygonize_r(handle, geomsG, ngeoms);
+    if (r != NULL) {
+      auto srid = lib->GEOSGetSRID_r(handle, r);
+      CR_GEOS_writeGeomToEWKB(lib, handle, r, ret, srid);
+      lib->GEOSGeom_destroy_r(handle, r);
+    }
+    lib->GEOSGeom_destroy_r(handle, geomsG);
+  }
+
   lib->GEOS_finish_r(handle);
   return toGEOSString(error.data(), error.length());
 }

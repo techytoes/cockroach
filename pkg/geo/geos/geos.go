@@ -225,6 +225,19 @@ func goToCSlice(b []byte) C.CR_GEOS_Slice {
 	}
 }
 
+// goToCSlice returns a CR_GEOS_Slice from a given Go byte slice.
+func goToCSliceForArr(b []geopb.EWKB) C.CR_GEOS_Arr_Slice {
+	var datas [][]byte
+	for i, s := range b {
+		datas[i] = goToCSlice(geopb.EWKB (s)).data
+	}
+	return C.CR_GEOS_Arr_Slice{
+		data: datas,
+		lenx:  C.size_t(len(datas)),
+		leny: C.size_t(len(datas[0])),
+	}
+}
+
 // cStringToUnsafeGoBytes convert a CR_GEOS_String to a Go
 // byte slice that refer to the underlying C memory.
 func cStringToUnsafeGoBytes(s C.CR_GEOS_String) []byte {
@@ -1068,6 +1081,21 @@ func MinimumRotatedRectangle(ewkb geopb.EWKB) (geopb.EWKB, error) {
 	var cEWKB C.CR_GEOS_String
 	if err := statusToError(
 		C.CR_GEOS_MinimumRotatedRectangle(g, goToCSlice(ewkb), &cEWKB),
+	); err != nil {
+		return nil, err
+	}
+	return cStringToSafeGoBytes(cEWKB), nil
+}
+
+// Polygonize Returns GeometryCollection containing the polygons formed by the constituent linework of a set of geometries.
+func Polygonize(a []geopb.EWKB, ngeoms int) (geopb.EWKB, error) {
+	g, err := ensureInitInternal()
+	if err != nil {
+		return nil, err
+	}
+	var cEWKB C.CR_GEOS_String
+	if err := statusToError(
+		C.CR_GEOS_Polygonize(g, goToCSliceForArr(a), C.int(ngeoms), &cEWKB),
 	); err != nil {
 		return nil, err
 	}
